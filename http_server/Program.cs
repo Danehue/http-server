@@ -1,39 +1,59 @@
-﻿using System.Net;
+﻿using http_server;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
-Console.WriteLine("Init");
+var Server = new HttpServer(IPAddress.Any, 4221, null);
+Console.WriteLine(Server.ToString());
 
-TcpListener server = new TcpListener(IPAddress.Any, 4221);
+//Console.WriteLine("Init");
 
-server.Start();
+//TcpListener server = new TcpListener(IPAddress.Any, 4221);
 
-using (Socket socket = server.AcceptSocket())
+//server.Start();
+
+//using (Socket socket = server.AcceptSocket())
+//{
+//    byte[] RequestBuff = new byte[1024];
+//    _ = socket.Receive(RequestBuff);
+//    string RequestString = Encoding.ASCII.GetString(RequestBuff);
+
+//    string HttpPath = ExtractHttpPath(RequestString);
+
+//    byte[] ResponceBuff = new byte[1024];
+//    if (HttpPath.StartsWith("/echo") || HttpPath.StartsWith('/'))
+//    {
+//        string HttpRouth = ExtractHttpRouth(HttpPath);
+//        ResponceBuff = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nConstext-Type: text/plain\r\nConstent-Length: {HttpRouth.Length}\r\n\r\n{HttpRouth}\r\n");
+//    }
+//    else
+//    {
+//        ResponceBuff = Encoding.ASCII.GetBytes("HTTP/1.1 404 Not Found\r\n\r\n");
+//    }
+//    socket.Send(ResponceBuff);
+//    // Console.WriteLine(Encoding.ASCII.GetString(ResponceBuff));
+
+//}
+
+string ExtractHttpRouth(string HttpPath)
 {
-    byte[] RequestBuff = new byte[1024];
-    _ = socket.Receive(RequestBuff);
-    string RequestString = Encoding.ASCII.GetString(RequestBuff);
-
-    string HttpPath = ExtractHttpPath(RequestString);
-
-    byte[] ResponceBuff = new byte[1024];
-    if (HttpPath == "/")
+    string[] HttpRouth = HttpPath.Split('/');
+    string Routh = "";
+    if (HttpRouth.Length == 2)
     {
-        ResponceBuff = Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\n\r\n");
-    } 
+        Routh = HttpRouth[1];
+    }
     else
     {
-        ResponceBuff = Encoding.ASCII.GetBytes("HTTP/1.1 404 Not Found\r\n\r\n");
+        Routh = HttpRouth[2];
     }
-    socket.Send(ResponceBuff);
-    // Console.WriteLine(Encoding.ASCII.GetString(ResponceBuff));
-
+    return Routh;
 }
 
 string ExtractHttpPath(string RequestString)
 {
     string[] RequestSplited = RequestString.Split('\n');
     var RequestLine = RequestSplited[0].Split(' ');
-    var Path = RequestLine[1];
+    string Path = RequestLine[1];
     return Path;
 }

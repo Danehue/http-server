@@ -2,9 +2,14 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
-var Server = new HttpServer(IPAddress.Any, 4221, null);
-Console.WriteLine(Server.ToString());
+using ILoggerFactory factory = LoggerFactory.Create(builder => builder.AddConsole());
+ILogger Logger = factory.CreateLogger("Program");
+var Server = new HttpServer(IPAddress.Any, 4221, Logger);
+//Console.WriteLine(Server.ToString());
+
+Server.Start();
 
 //Console.WriteLine("Init");
 

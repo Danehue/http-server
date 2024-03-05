@@ -10,7 +10,9 @@ namespace http_server
     internal abstract class HttpMessage
     {
         public string RawStringMessage { get; }
-        private Dictionary<string, string>? Headers;
+        protected string StartLine { get; set; }
+        public string? Body { get; set; }
+        protected Dictionary<string, string>? Headers { set; get; } = new Dictionary<string,string>();
         private readonly string CRLF = "\r\n";
         public HttpMessage(string RawStringMessage)
         {
@@ -23,16 +25,17 @@ namespace http_server
 
             string[] MessageLines = RawStringMessage.Split(CRLF);
             Debug.Assert(MessageLines.Length > 0, "HTTP message should have at least a Start Line!");
-            string StartLine = MessageLines[0];
+            StartLine = MessageLines[0];
             ProcessStartLine(StartLine);
         }
         public HttpMessage() { }
 
         protected abstract void ProcessStartLine(string startLine);
 
-        public override string ToString()
-        {
-            return base.ToString();
-        }
+        public override string ToString() => $"{StartLine}{CRLF}" +
+                                             $"{string.Join(CRLF,Headers.Select(kvp => $"{kvp.Key}:{kvp.Value}"))}" +
+                                             $"{CRLF}{CRLF}" +
+                                             $"{Body}";
+        
     }
 }

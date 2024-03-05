@@ -11,13 +11,14 @@ namespace http_server
         public IPAddress Ip { get; }
         public ushort Port { get; }
         public ILogger Logger { get; }
-        private int MaxRecievedBytes { get; set; }
+        protected int MaxRecievedBytes { get; set; }
 
         public TcpServer(IPAddress Ip, ushort Port, ILogger Logger)
         {
             this.Ip = Ip;
             this.Port = Port;
             this.Logger = Logger;
+            this.MaxRecievedBytes = 1024;
         }
 
         public void Start()

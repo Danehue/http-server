@@ -17,11 +17,14 @@ namespace http_server
         {
 
         }
-        public HttpResponce(string HttpVersion, HttpStatusCode StatusCode)
+        public HttpResponce(string HttpVersion, HttpStatusCode StatusCode, Dictionary<string, string>? Headers = null, string? Body = null)
         {
             this.HttpVersion = HttpVersion;
             this.StatusCode = StatusCode;
-            ReasonPhrase = Enum.GetName(StatusCode);
+            this.ReasonPhrase = HttpStatusCodeExtension.GetHttpStatusCodeName(StatusCode);
+            this.StartLine = $"{HttpVersion} {(int)StatusCode} {ReasonPhrase}";
+            this.Headers = Headers ?? new Dictionary<string, string>();
+            this.Body = Body;
         }
 
 
@@ -43,7 +46,17 @@ namespace http_server
 
         public static HttpResponce NotImplemented(string HttpVersion)
         {
-            return new HttpResponce(HttpVersion, HttpStatusCode.NotImplementes);
+            return new HttpResponce(HttpVersion, HttpStatusCode.NotImplemented);
+        }
+
+        public static HttpResponce NotFound(string HttpVersion)
+        {
+            return new HttpResponce(HttpVersion, HttpStatusCode.NotFound);
+        }
+
+        public static HttpResponce Ok(string HttpVersion, Dictionary<string, string>? Headers = null, string? Body = null)
+        {
+            return new HttpResponce(HttpVersion, HttpStatusCode.OK, Headers, Body);
         }
     }
 }

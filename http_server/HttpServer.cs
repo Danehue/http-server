@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Threading.Tasks;
 //using http_server;
@@ -36,25 +37,42 @@ namespace http_server
             {
                 return DefaultEncoding.GetBytes(HttpResponce.NotImplemented(ServerHttpVersion).ToString());
             }
-            if (ParsedString.RequestUri.ToLowerInvariant().StartsWith("/echo/"))
+            if (ParsedString.RequestUri == "/")
+            {
+                return DefaultEncoding.GetBytes(HttpResponce.Ok(ServerHttpVersion).ToString());
+            }
+            if (ParsedString.RequestUri.ToLowerInvariant().StartsWith(Routes.Echo))
             {
                 var Responce = HandleEcho(ParsedString.RequestUri);
                 return DefaultEncoding.GetBytes(HttpResponce.Ok(
                     ServerHttpVersion,
                     new Dictionary<string, string>
                     {
-                        {"Content-Type", "text/plain" },
-                        {"Content-Length", Responce?.Length.ToString() ?? "0" } // Dictionary value could be null
+                        {HttpHeaders.ContentType, HttpHeaders.TextPlain},
+                        {HttpHeaders.ContentLength, Responce?.Length.ToString() ?? "0"} // Dictionary value could be null
+                    },
+                    Responce).ToString());
+            }
+            if (ParsedString.RequestUri.ToLowerInvariant().StartsWith(Routes.UserAgent))
+            {
+                var Responce = ParsedString.Headers[HttpHeaders.UserAgent];
+                return DefaultEncoding.GetBytes(HttpResponce.Ok(
+                    ServerHttpVersion,
+                    new Dictionary<string, string>
+                    {
+                        {HttpHeaders.ContentType, HttpHeaders.TextPlain},
+                        {HttpHeaders.ContentLength, Responce?.Length.ToString() ?? "0"} // Dictionary value could be null
                     },
                     Responce).ToString());
             }
             return DefaultEncoding.GetBytes(HttpResponce.NotFound(ServerHttpVersion).ToString());
         }
 
-        private string HandleEcho(string RequestUri)
+        private static string HandleEcho(string RequestUri)
         {
-            var ToEcho = RequestUri["/echo/".Length..];
+            var ToEcho = RequestUri[Routes.Echo.Length..];
             return ToEcho;
         }
+        
     }
 }

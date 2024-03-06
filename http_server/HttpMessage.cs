@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace http_server
@@ -12,8 +13,10 @@ namespace http_server
         public string RawStringMessage { get; }
         protected string StartLine { get; set; }
         public string? Body { get; set; }
-        protected Dictionary<string, string>? Headers { set; get; } = new Dictionary<string,string>();
+        public Dictionary<string, string> Headers { get; protected set; } = new Dictionary<string,string>();
         private readonly string CRLF = "\r\n";
+        private readonly string AnyCharacter = "[^ ]*";
+
         public HttpMessage(string RawStringMessage)
         {
             if (string.IsNullOrEmpty(RawStringMessage))
@@ -23,14 +26,37 @@ namespace http_server
 
             this.RawStringMessage = RawStringMessage;
 
-            string[] MessageLines = RawStringMessage.Split(CRLF);
-            Debug.Assert(MessageLines.Length > 0, "HTTP message should have at least a Start Line!");
+            string[] MessageLines = { };
+            // Header fields can be extended over multiple lines by preceding each extra line with at least one SP or HT
+            if (Regex.IsMatch(RawStringMessage, $@"{CRLF}{AnyCharacter}"))
+            {
+                // Split HttpMessage
+                MessageLines = Regex.Split(RawStringMessage, $@"{CRLF}");
+            }
+
+            Debug.Assert(MessageLines.Length > 0, "HTTP message should have at least a Start Line.");
             StartLine = MessageLines[0];
             ProcessStartLine(StartLine);
+            ProcessHeaders(MessageLines);
+
         }
         public HttpMessage() { }
 
-        protected abstract void ProcessStartLine(string startLine);
+        protected void ProcessHeaders(string[] StringMessage)
+        {
+            
+            foreach (var line in StringMessage.Skip(1))
+            {
+                if (line == "") break;
+                if (line.Contains(':'))
+                {
+                    string[] SplittedHeader = line.Split(": ");
+                    Headers.Add(SplittedHeader[0], SplittedHeader[1].Trim());
+                }
+            }
+        }
+
+        protected abstract void ProcessStartLine(string StartLine);
 
         public override string ToString() => $"{StartLine}{CRLF}" +
                                              $"{string.Join(CRLF,Headers.Select(kvp => $"{kvp.Key}:{kvp.Value}"))}" +

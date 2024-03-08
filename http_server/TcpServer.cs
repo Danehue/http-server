@@ -27,14 +27,13 @@ namespace http_server
             Server.Start();
             Logger.LogInformation($"Started server on {Ip}:{Port}");
             while (!ShouldStop)
-            { 
-                using (Socket socket = Server.AcceptSocket())
-                {
-                    byte[] RequestBuff = new byte[MaxRecievedBytes];
-                    int RecievedBytes = socket.Receive(RequestBuff);
-                    byte[] Responce = ProcessRequest(RequestBuff);
-                    socket.Send(Responce);
-                }
+            {
+                Socket socket = Server.AcceptSocket();
+                byte[] RequestBuff = new byte[MaxRecievedBytes];
+                int RecievedBytes = socket.Receive(RequestBuff);
+                byte[] Responce = [];
+                Task.Run(() => { Responce = ProcessRequest(RequestBuff, socket); });
+                Send(Responce,socket);
             }
         }
 
@@ -43,8 +42,9 @@ namespace http_server
             ShouldStop = true;
         }
 
-        protected abstract byte[] ProcessRequest(byte[] RequestBuff);
+        protected abstract byte[] ProcessRequest(byte[] RequestBuff, Socket socket);
 
+        protected abstract void Send(byte[] RequestBuff, Socket socket);
     }
 }
 

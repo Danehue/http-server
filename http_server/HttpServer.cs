@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
+using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
 //using http_server;
@@ -21,62 +22,53 @@ namespace http_server
         };
         private readonly Encoding DefaultEncoding = Encoding.ASCII;
         private readonly string ServerHttpVersion = "HTTP/1.1";
-        public HttpServer(IPAddress Ip, ushort Port, ILogger Logger)
+        public string? Dir { get; }
+        public HttpServer(IPAddress Ip, ushort Port, ILogger Logger, string? Dir)
             : base(Ip, Port, Logger)
         {
+            this.Dir = Dir;
         }
 
         // RFC 2616
         // Request-Line = Method SP Request-URI SP HTTP-Version CRLF
         // Status-Line  = HTTP-Version SP Status-Code SP Reason-Phrase CRLF
-        protected override byte[] ProcessRequest(byte[] RequestBytes, Socket socket)
+        protected override async Task ProcessRequestAsync(Socket socket)
         {
-            byte[] ResponceBytes = [];
             try
             {
+                byte[] RequestBuff = new byte[MaxRecievedBytes];
+                int RecievedBytes = await socket.ReceiveAsync(RequestBuff, SocketFlags.None);
+
                 Logger.LogInformation($"Thread {Thread.CurrentThread.Name} {Thread.CurrentThread.ManagedThreadId} processing");
-                string RequestString = DefaultEncoding.GetString(RequestBytes);
+                string RequestString = DefaultEncoding.GetString(RequestBuff);
                 Logger.LogInformation($"{nameof(RequestString)}: {RequestString}");
 
                 HttpRequest ParsedString = new HttpRequest(RequestString);
                 if (!SuportedMethods.Contains(ParsedString.Method))
                 {
-                    ResponceBytes = DefaultEncoding.GetBytes(HttpResponce.NotImplemented(ServerHttpVersion).ToString());
-                    return ResponceBytes;
+                    RequestBuff = DefaultEncoding.GetBytes(HttpResponce.NotImplemented(ServerHttpVersion).ToString());
+                    await Send(RequestBuff, socket);
+                    return;
                 }
-                if (ParsedString.RequestUri == "/")
+                switch (ParsedString.RequestUri.ToLowerInvariant())
                 {
-                    ResponceBytes = DefaultEncoding.GetBytes(HttpResponce.Ok(ServerHttpVersion).ToString());
-                    return ResponceBytes;
+                    case Routes.Base:
+                        await Send(DefaultEncoding.GetBytes(HttpResponce.Ok(ServerHttpVersion).ToString()), socket);
+                        break;
+                    case var uri when uri.StartsWith(Routes.Echo):
+                        await Echo(ParsedString);
+                        break;
+                    case var uri when uri.StartsWith(Routes.UserAgent):
+                        await UserAgent(ParsedString);
+                        break;
+                    case var uri when uri.StartsWith(Routes.Files):
+                        await Files(ParsedString);
+                        break;
+                    default:
+                        await Send(DefaultEncoding.GetBytes(HttpResponce.NotFound(ServerHttpVersion).ToString()), socket);
+                        break;
                 }
-                if (ParsedString.RequestUri.ToLowerInvariant().StartsWith(Routes.Echo))
-                {
-                    var Body = HandleEcho(ParsedString.RequestUri);
-                    ResponceBytes = DefaultEncoding.GetBytes(HttpResponce.Ok(
-                        ServerHttpVersion,
-                        new Dictionary<string, string>
-                        {
-                        {HttpHeaders.ContentType, HttpHeaders.TextPlain},
-                        {HttpHeaders.ContentLength, Body?.Length.ToString() ?? "0"} // Dictionary value could be null
-                        },
-                        Body).ToString());
-                    return ResponceBytes;
-                }
-                if (ParsedString.RequestUri.ToLowerInvariant().StartsWith(Routes.UserAgent))
-                {
-                    var Body = ParsedString.Headers[HttpHeaders.UserAgent];
-                    ResponceBytes = DefaultEncoding.GetBytes(HttpResponce.Ok(
-                        ServerHttpVersion,
-                        new Dictionary<string, string>
-                        {
-                        {HttpHeaders.ContentType, HttpHeaders.TextPlain},
-                        {HttpHeaders.ContentLength, Body?.Length.ToString() ?? "0"} // Dictionary value could be null
-                        },
-                        Body).ToString());
-                    return ResponceBytes;
-                }
-                ResponceBytes = DefaultEncoding.GetBytes(HttpResponce.NotFound(ServerHttpVersion).ToString());
-                return ResponceBytes;
+               
             }
             catch (Exception ex)
             {
@@ -84,21 +76,63 @@ namespace http_server
             }
             finally
             {
-                Send(ResponceBytes, socket);
+
                 socket.Close();
             }
 
+            async Task Echo(HttpRequest ParsedString)
+            {
+                string Body = ParsedString.RequestUri[Routes.Echo.Length..];
+                int BodyLength = Body?.Length ?? 0;
+                byte[] RequestBuff = DefaultEncoding.GetBytes(HttpResponce.Ok(ServerHttpVersion, HttpHeaders.GetHeaders(HttpHeaders.TextPlain, BodyLength), Body)
+                    .ToString());
+                await Send(RequestBuff, socket);
+                return;
+            }
+
+            async Task UserAgent(HttpRequest ParsedString)
+            {
+                string Body = ParsedString.Headers[HttpHeaders.UserAgent];
+                int BodyLength = Body?.Length ?? 0;
+                byte[] RequestBuff = DefaultEncoding.GetBytes(HttpResponce.Ok(ServerHttpVersion, HttpHeaders.GetHeaders(HttpHeaders.TextPlain, BodyLength), Body)
+                    .ToString());
+                await Send(RequestBuff, socket);
+                return;
+            }
+
+            async Task Files(HttpRequest ParsedString)
+            {
+                if (Dir is null)
+                {
+                    Logger.LogError("Dir is null, can't handle files");
+                    await Send(DefaultEncoding.GetBytes(HttpResponce.BadRequest(ServerHttpVersion).ToString()), socket);
+                }
+                string[]? SplittedUri = ParsedString.RequestUri?.Split(Routes.Files);
+                if(SplittedUri is null || SplittedUri.Length < 2)
+                {
+                    Logger.LogError("Expected a file name");
+                    return;
+                }
+                string TargetFile = Path.Combine(Dir,SplittedUri[1]);
+                if(File.Exists(TargetFile))
+                {
+                    string FileContents = await File.ReadAllTextAsync(TargetFile);
+                    int ContentLength = FileContents?.Length ?? 0;
+                    byte[] FileResponce = DefaultEncoding.GetBytes(HttpResponce.Ok(ServerHttpVersion, HttpHeaders.GetHeaders(HttpHeaders.OctetStream, ContentLength), FileContents)
+                        .ToString());
+                    await Send(FileResponce, socket);
+                }
+                else
+                {
+                    // 404 not foud
+                    await Send(DefaultEncoding.GetBytes(HttpResponce.NotFound(ServerHttpVersion).ToString()), socket);
+                }
+            }
         }
 
-        protected override void Send(byte[] Responce, Socket socket)
+        protected override Task Send(byte[] Responce, Socket socket)
         {
-            socket.Send(Responce);
-        }
-
-        private static string HandleEcho(string RequestUri)
-        {
-            var ToEcho = RequestUri[Routes.Echo.Length..];
-            return ToEcho;
+            return socket.SendAsync(Responce, SocketFlags.None);
         }
 
     }

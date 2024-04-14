@@ -21,7 +21,10 @@ namespace http_server
         NotFound = 404,
 
         [HttpStatusCode("Not Implemented")]
-        NotImplemented = 501
+        NotImplemented = 501,
+
+        [HttpStatusCode("Bad Request")]
+        BadRequest = 400
     }
     public static class HttpStatusCodeExtension
     {

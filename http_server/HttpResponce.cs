@@ -54,6 +54,11 @@ namespace http_server
             return new HttpResponce(HttpVersion, HttpStatusCode.NotFound);
         }
 
+        public static HttpResponce BadRequest(string HttpVersion)
+        {
+            return new HttpResponce(HttpVersion, HttpStatusCode.BadRequest);
+        }
+
         public static HttpResponce Ok(string HttpVersion, Dictionary<string, string>? Headers = null, string? Body = null)
         {
             return new HttpResponce(HttpVersion, HttpStatusCode.OK, Headers, Body);

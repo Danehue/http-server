@@ -4,61 +4,33 @@ using System.Net.Sockets;
 using System.Text;
 using Microsoft.Extensions.Logging;
 
-using ILoggerFactory factory = LoggerFactory.Create(builder => builder.AddConsole());
-ILogger Logger = factory.CreateLogger("Program");
-var Server = new HttpServer(IPAddress.Any, 4221, Logger);
-//Console.WriteLine(Server.ToString());
-
-Server.Start();
-
-//Console.WriteLine("Init");
-
-//TcpListener server = new TcpListener(IPAddress.Any, 4221);
-
-//server.Start();
-
-//using (Socket socket = server.AcceptSocket())
-//{
-//    byte[] RequestBuff = new byte[1024];
-//    _ = socket.Receive(RequestBuff);
-//    string RequestString = Encoding.ASCII.GetString(RequestBuff);
-
-//    string HttpPath = ExtractHttpPath(RequestString);
-
-//    byte[] ResponceBuff = new byte[1024];
-//    if (HttpPath.StartsWith("/echo") || HttpPath.StartsWith('/'))
-//    {
-//        string HttpRouth = ExtractHttpRouth(HttpPath);
-//        ResponceBuff = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nConstext-Type: text/plain\r\nConstent-Length: {HttpRouth.Length}\r\n\r\n{HttpRouth}\r\n");
-//    }
-//    else
-//    {
-//        ResponceBuff = Encoding.ASCII.GetBytes("HTTP/1.1 404 Not Found\r\n\r\n");
-//    }
-//    socket.Send(ResponceBuff);
-//    // Console.WriteLine(Encoding.ASCII.GetString(ResponceBuff));
-
-//}
-
-string ExtractHttpRouth(string HttpPath)
+class Program
 {
-    string[] HttpRouth = HttpPath.Split('/');
-    string Routh = "";
-    if (HttpRouth.Length == 2)
+    static void Main(string[] args)
     {
-        Routh = HttpRouth[1];
-    }
-    else
-    {
-        Routh = HttpRouth[2];
-    }
-    return Routh;
-}
+        using ILoggerFactory factory = LoggerFactory.Create(builder => builder.AddConsole());
+        ILogger Logger = factory.CreateLogger("Program");
 
-string ExtractHttpPath(string RequestString)
-{
-    string[] RequestSplited = RequestString.Split('\n');
-    var RequestLine = RequestSplited[0].Split(' ');
-    string Path = RequestLine[1];
-    return Path;
+
+        string? Dir = null;
+        if(args is not null && args.Length > 0 )
+        {
+            Logger.LogInformation($"Received {args.Length} args: {string.Join(", ", args)}");
+            if (args[0] == "--directory")
+            {
+                if(args.Length < 2)
+                {
+                    Logger.LogError($"Received {args[0]} but no directory was sent");
+                }
+                else
+                {
+                    Dir = args[1];
+                }
+            }
+        }
+
+        var Server = new HttpServer(IPAddress.Any, 4221, Logger, Dir);
+        Server.Start();
+
+    }
 }

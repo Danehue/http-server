@@ -12,7 +12,7 @@ namespace http_server
         public ushort Port { get; }
         public ILogger Logger { get; }
         protected int MaxRecievedBytes { get; set; }
-        public bool ShouldStop { get; private set; }  = false;
+        public bool ShouldStop { get; private set; } = false;
         public TcpServer(IPAddress Ip, ushort Port, ILogger Logger)
         {
             this.Ip = Ip;
@@ -29,11 +29,7 @@ namespace http_server
             while (!ShouldStop)
             {
                 Socket socket = Server.AcceptSocket();
-                byte[] RequestBuff = new byte[MaxRecievedBytes];
-                int RecievedBytes = socket.Receive(RequestBuff);
-                byte[] Responce = [];
-                Task.Run(() => { Responce = ProcessRequest(RequestBuff, socket); });
-                Send(Responce,socket);
+                _ = Task.Run(async () => await ProcessRequestAsync(socket));
             }
         }
 
@@ -42,9 +38,9 @@ namespace http_server
             ShouldStop = true;
         }
 
-        protected abstract byte[] ProcessRequest(byte[] RequestBuff, Socket socket);
+        protected abstract Task ProcessRequestAsync(Socket socket);
 
-        protected abstract void Send(byte[] RequestBuff, Socket socket);
+        protected abstract Task Send(byte[] RequestBuff, Socket socket);
     }
 }
 

@@ -32,6 +32,8 @@ namespace http_server
             HttpVersion = SplittedRequestLine[2] ?? throw new ArgumentNullException($"{HttpVersion} cannot be null");
         }
 
+        public bool IsGet => !string.IsNullOrWhiteSpace( Method ) && Method == "GET";
+        public bool IsPost => !string.IsNullOrWhiteSpace( Method ) && Method == "POST";
 
     }
 }

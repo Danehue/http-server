@@ -12,7 +12,7 @@ namespace http_server
     {
         public string RawStringMessage { get; }
         protected string StartLine { get; set; }
-        public string? Body { get; set; }
+        public string? Body { get; protected set; }
         public Dictionary<string, string> Headers { get; protected set; } = new Dictionary<string,string>();
         private readonly string CRLF = "\r\n";
         private readonly string AnyCharacter = "[^ ]*";
@@ -38,9 +38,13 @@ namespace http_server
             StartLine = MessageLines[0];
             ProcessStartLine(StartLine);
             ProcessHeaders(MessageLines);
-
+            ProcessBody(MessageLines);
         }
+
+       
+
         public HttpMessage() { }
+        protected abstract void ProcessStartLine(string StartLine);
 
         protected void ProcessHeaders(string[] StringMessage)
         {
@@ -55,8 +59,13 @@ namespace http_server
                 }
             }
         }
-
-        protected abstract void ProcessStartLine(string StartLine);
+        protected void ProcessBody(string[] StringMessage)
+        {
+            foreach (var L in StringMessage.Skip(1).Skip(Headers.Count))
+            {
+                Body += L;
+            }
+        }
 
         public override string ToString() => $"{StartLine}{CRLF}" +
                                              $"{string.Join(CRLF,Headers.Select(kvp => $"{kvp.Key}:{kvp.Value}"))}" +

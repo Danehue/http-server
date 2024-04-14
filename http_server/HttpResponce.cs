@@ -63,5 +63,10 @@ namespace http_server
         {
             return new HttpResponce(HttpVersion, HttpStatusCode.OK, Headers, Body);
         }
+
+        public static HttpResponce Created(string HttpVersion, Dictionary<string, string>? Headers = null, string? Body = null)
+        {
+            return new HttpResponce(HttpVersion, HttpStatusCode.Created, Headers, Body);
+        }
     }
 }

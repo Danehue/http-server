@@ -17,6 +17,9 @@ namespace http_server
         [HttpStatusCode("OK")]
         OK = 200,
 
+        [HttpStatusCode("Created")]
+        Created = 201,
+
         [HttpStatusCode("Not Found")]
         NotFound = 404,
 

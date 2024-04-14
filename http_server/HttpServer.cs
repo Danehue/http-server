@@ -18,7 +18,8 @@ namespace http_server
         private readonly string[] SuportedMethods =
         {
             "GET",
-            "HEAD"
+            "POST",
+            "HEAD",
         };
         private readonly Encoding DefaultEncoding = Encoding.ASCII;
         private readonly string ServerHttpVersion = "HTTP/1.1";
@@ -38,6 +39,7 @@ namespace http_server
             {
                 byte[] RequestBuff = new byte[MaxRecievedBytes];
                 int RecievedBytes = await socket.ReceiveAsync(RequestBuff, SocketFlags.None);
+                RequestBuff = RequestBuff[0..RecievedBytes];
 
                 Logger.LogInformation($"Thread {Thread.CurrentThread.Name} {Thread.CurrentThread.ManagedThreadId} processing");
                 string RequestString = DefaultEncoding.GetString(RequestBuff);
@@ -106,27 +108,41 @@ namespace http_server
                 {
                     Logger.LogError("Dir is null, can't handle files");
                     await Send(DefaultEncoding.GetBytes(HttpResponce.BadRequest(ServerHttpVersion).ToString()), socket);
+                    return;
                 }
                 string[]? SplittedUri = ParsedString.RequestUri?.Split(Routes.Files);
-                if(SplittedUri is null || SplittedUri.Length < 2)
+                if (SplittedUri is null || SplittedUri.Length < 2)
                 {
                     Logger.LogError("Expected a file name");
                     return;
                 }
-                string TargetFile = Path.Combine(Dir,SplittedUri[1]);
-                if(File.Exists(TargetFile))
+                string TargetFile = Path.Combine(Dir, SplittedUri[1]);
+                if (ParsedString.IsGet)
                 {
-                    string FileContents = await File.ReadAllTextAsync(TargetFile);
-                    int ContentLength = FileContents?.Length ?? 0;
-                    byte[] FileResponce = DefaultEncoding.GetBytes(HttpResponce.Ok(ServerHttpVersion, HttpHeaders.GetHeaders(HttpHeaders.OctetStream, ContentLength), FileContents)
-                        .ToString());
-                    await Send(FileResponce, socket);
+                    if (File.Exists(TargetFile))
+                    {
+                        string FileContents = await File.ReadAllTextAsync(TargetFile);
+                        int ContentLength = FileContents?.Length ?? 0;
+                        byte[] FileResponce = DefaultEncoding.GetBytes(HttpResponce.Ok(ServerHttpVersion, HttpHeaders.GetHeaders(HttpHeaders.OctetStream, ContentLength), FileContents)
+                            .ToString());
+                        await Send(FileResponce, socket);
+                    }
+                    else
+                    {
+                        // 404 not foud
+                        await Send(DefaultEncoding.GetBytes(HttpResponce.NotFound(ServerHttpVersion).ToString()), socket);
+                    }
+                }
+                else if (ParsedString.IsPost)
+                {
+                    await File.WriteAllTextAsync(TargetFile, ParsedString.Body);
+                    await Send(DefaultEncoding.GetBytes(HttpResponce.Created(ServerHttpVersion).ToString()), socket);
                 }
                 else
                 {
-                    // 404 not foud
-                    await Send(DefaultEncoding.GetBytes(HttpResponce.NotFound(ServerHttpVersion).ToString()), socket);
+                    throw new Exception($"The method {ParsedString.Method} is not sopported");
                 }
+                
             }
         }
 
